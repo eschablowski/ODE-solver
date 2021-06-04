@@ -1,0 +1,24 @@
+{
+  "name": "x_p",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "ts-node index.ts"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "mathjs": "^9.4.1",
+    "ts-node": "^10.0.0",
+    "typescript": "^4.2.4"
+  },
+  "devDependencies": {
+    "@types/jest": "^26.0.23",
+    "@types/node": "^15.6.1",
+    "jest": "^27.0.4",
+    "prettier": "^2.3.0",
+    "ts-jest": "^27.0.2"
+  }
+}
