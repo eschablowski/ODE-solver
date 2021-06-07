@@ -1,0 +1,117 @@
+\documentclass{article}
+
+\usepackage[hidelinks]{hyperref}
+
+\title{Math 15 Project - An algorithmic approach to Nonhomogenious equation solving}
+\date{2021-06-04}
+\author{Elias Schablowski}
+
+
+\begin{document}
+\pagenumbering{gobble}
+\maketitle
+\newpage
+\tableofcontents
+\pagebreak
+\pagenumbering{arabic}
+\section{Abstract}
+\paragraph{Differential Equations} are a cornerstone of the physical world. Many processes can be measured and modeled most accurately with ODE.
+\paragraph{Non-homogenious Differential Equations} are a family of equations which is more difficult to solve due to their dependence on two variables. It is also a very broad range of equations, for example, this category includes forced oscilators, double pendulums, and more.
+\paragraph{Methods to solve} There are multiple methods to solve non-homogenious equations. Each with their own advantages and drawbacks. The most basic is undetermined coefficients.
+\section{Theory}
+
+\subsection{Undetermined Coefficients}
+\paragraph{The Idea} behind undetermined coefficients is to take the sum of all linearly independent differentials. This is so that the differentials can cancel each other out when differentiated and thus form the the final equation.
+$$y_p=\sum_{n=0}^Na_n f^{(n)}$$ Where N is the number of linearly independent differentials and $a_n$ is a scaling factor.
+\paragraph{The advantage} of undetermined coefficients is that it is capable of turning a differential equation into a system of equations in O(N) time.
+\paragraph{The disadvantage} of undetermined coefficients is the requirement for a finite set of linearly independent derivatives. This excludes many common trigonometric functions such as $tan(x)$ and $\frac{a}{x^n}$.
+
+\subsection{Variation of Parameters}
+\paragraph{The Idea} behind variation of parameters is to modify the the complementary solution in such a way as to create the forcing function.
+\paragraph{The advantage} of variation of parameters is that it can solve a wide array of problems.
+\paragraph{The disadvantages} of variation of parameters is that it often does not result in a system of equations with a single solution, and often requires the addition of additional constraints, therefore not lending itself to a computerized approach without bias. Furthermore, it is also requires the solutions to the complementary equation to be know, which further adds to the complexity.
+
+\subsection{The Laplace Transform}
+\paragraph{The Idea} behind using the laplace transform is replacing a problematic function with one that is simpler to solve with, and can be transformed back without information loss (1 to 1 transformation).
+\paragraph{Why the Laplace Transform?} The Laplace Transform has multiple properties that make it an ideal candedate to solve ODEs and PDEs. These properties are linearity and uniqeness. Furthermore, many properties also resemble those of differentiation.
+\paragraph{The disadvantage} of the Laplace Transform is that computing the laplace transform requires solving an itegral which is complex.
+
+\section{Algorithm}
+\subsection{Inputs}
+\paragraph{The Equation} is inputed as two expression trees, with one representiong the ODE/PDE and the other representing the function.
+\paragraph{The Preferred Method} is an optional parameter which specifies the preferred method to solve the ODE/PDE.
+\subsection{Selection of Method}
+This process is one of elimination, namely finding whether the faster methods work.
+\subsubsection{Undetermined Coefficients}
+The method in which you can determine whether the ODE can be solved using Undetermined Coefficients is to determine whether the function has a finite amount liearly independent derivatives.
+The most efficient method is to determine whether the function has a finite amount of derivaties is to check whether the function has either a function with an infinete amount linearly independent derivatives, division by a variable, or exponentiation with a variable base and exponent
+as per \hyperref[sec:derivative_proofs]{Proofs}.
+\subsubsection{Variation of Parameters}
+This method is not used, due to the proof of aplicability is more expensive than the efficiency gains of the Laplace Transform.
+\subsubsection{The Laplace Transform}
+This method is used when Undetermined Coefficients cannot be used.
+\subsection{Undetermined Coefficients}
+\begin{enumerate}
+    \item Find All linearly independent derivatives
+    \item Sum all linearly independent derivatives together
+    \item Remove all constant coefficients and shifts.
+    \item Inject variables into all critical locations (coefficients of functions and variables as well as shifts)
+    \item Plug this new function into the ODE
+    \item Solve the equation for the values of the injected variables \footnote{In my implementation, this was done using a system of equations (which limits this implementation to polynomials)}
+    \item Substitute the found values in for the injected variables
+\end{enumerate}
+
+\subsection{Laplace Transform}
+\begin{enumerate}
+    \item Compute the Laplace Transform of the ODE.
+    \item Query for the initial conditions.
+    \item Solve for $X(s)$\footnote{I used Wolfram Alpa to do this step due to the complexities of Symbolic solving.}
+    \item Compute the Inverse Laplace Transform
+\end{enumerate}
+\footnotetext{See the implementation (as well as the tex document for this paper on \hyperlink{https://github.com/eschablowski/}{})}
+\newpage
+\section{Proofs}
+\subsection{Finiteness of Derivates}
+\label{sec:derivative_proofs}
+\paragraph{Note: } I made these proof, as I didn't find any general method of checking for infine linearly independent derivaties.
+\subsubsection{Addition}
+\paragraph {Let} $f$ and $g$ be any function.
+\paragraph {Let} $y = f(x) + g(x)$
+\paragraph{Let} $N_f$ be the number of linearly independent derivatives of $f$, $N_g$ be the number of linearly independent derivatives of $g$.
+$$y^{(n)}=f^{(n)}(x)+g^{(n)}(x)$$
+\paragraph{Let} $L_f = \sum_{n=0}^{N_f} f^{(n)}$ and $L_g = \sum_{n=0}^{N_g} g^{(n)}$
+\paragraph{Since} $L_f$ and $L_g$ are the sums of linearly independent derivatives of $f$ and $g$ respectively,
+then the sum linearly independent derivatives of $y$ is $L_g + L_f$.
+\paragraph{Therefore} the linearly independent derivaties of $y$ is fine as long as $N_g \neq \infty$ and $N_f \neq \infty$
+
+\subsubsection{Multiplication}
+\paragraph {Let} $f$ and $g$ be any function.
+\paragraph {Let} $y = f(x) * g(x)$
+\paragraph{Let} $N_f$ be the number of linearly independent derivatives of $f$, $N_g$ be the number of linearly independent derivatives of $g$, and $N$ be $N_f$ if $N_f > N_g$ or $N_g$ otherwise.
+$$y^{(n)}(x)=\sum_{i=1}^n f^{(i-n)}(x) * g^{(n-i)}(x)$$
+\paragraph{Therefore,} if $f$ and $g$ have finite linearly independent derivatives, $y$ must also have a finine number of linearly independent derivatives.
+
+\pagebreak
+\section{Further items for Consideration}
+\subsection{The Gaver/Stehfest Algorithm}
+The Gaver/Stehfest Algorithm is a method for approximating the value of the inverse Laplace Transform. \citation{stehfest_1970}
+This can be useful for solving ODEs for program internals and/or creating a function from ODEs.
+The reason why it was not used in this program was due to the fact that the goal of the program was to compute $y_p$ for output, not for computing $y(x)$ at points of $x$.
+
+\subsection{Further proofs}
+The following rules of differentiation still require proofs for their finiteness from their arguments:
+\begin{enumerate}
+    \item Chain rule
+    \item Division (probably most difficult)
+    \item exponentiation
+\end{enumerate}
+\subsection{Improvements of the program}
+The following improvements can still be made to the program:
+\begin{enumerate}
+    \item Add a CLI.
+    \item Implement a better symbolic equation solver.
+\end{enumerate}
+\pagebreak\nocite{*} % nocite is used since tex is removing the \cite commands for some reason.
+\bibliography{paper}
+\bibliographystyle{ieeetr}
+\end{document}

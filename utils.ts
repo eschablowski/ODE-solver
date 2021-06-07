@@ -1,4 +1,9 @@
 import { MathNode, derivative as _derive, simplify, parse } from 'mathjs';
+import dotenv from "dotenv";
+dotenv.config();
+import WolframAlpha from "wolfram-alpha-api";
+
+export const wolfram = new WolframAlpha(process.env.WOLFRAM_ID); // Create a new Wolfram Alpha API instance woth the correct key
 
 function includes(arr: MathNode[], func: MathNode) {
     for (const foundFunc of arr) {
@@ -62,8 +67,8 @@ export function expand(func: MathNode) {
         'n1^ (n2 + n3) -> n1 ^ n2 * n1 ^ n3',
         'n1 ^ 0 -> 1',
         'n1 ^ 1 -> n1',
-        'c1 * n1+ c2 * n1 -> (c1+c2) * n1',
         '(n1+n2)*n3 -> n1*n3 + n2*n3',
+        'c1 * n1+ c2 * n1 -> (c1+c2) * n1',
         (simplify as any).rules.filter((r) => typeof r === 'function')[1], // simplifies constants
     ]);
 }

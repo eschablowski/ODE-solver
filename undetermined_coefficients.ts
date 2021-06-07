@@ -1,34 +1,34 @@
-import math, { MathNode, simplify, parse } from 'mathjs';
+import * as math from 'mathjs';
+import { simplify } from 'mathjs';
 
-import { equal, derivatives, derive, expand, isConstant } from './utils';
+import { derivatives, derive, expand, isConstant } from './utils';
 
-const internalVariableString = '___internal_variable_do_not_use___';
+const internalVariableString = '___internal_variable__DO_NOT_USE_____';
 
 function injectVariables(
-    func: MathNode,
+    func: math.MathNode,
     variables: Set<string> = new Set()
-): [MathNode, Set<string>] {
+): [math.MathNode, Set<string>] {
     const newVariable = () => {
-        let name;
+        let name: string;
         do {
-            name = `___internal_variable_do_not_use__$__${
-                Math.random() * 10000
-            }`;
+            name = internalVariableString + Math.floor(Math.random() * 100000);
         } while (variables.has(name));
         variables.add(name);
         return name;
     };
     switch (func.type) {
         case 'ConstantNode':
-            return newVariable();
+            const name = newVariable();
+            return [math.parse(name), variables];
         case 'OperatorNode':
-            switch (func.fn) {
+            switch (func.op) {
                 case '+':
                 case '-':
                 case '*':
-                    func.args.push(newVariable());
+                    func.args.push(math.parse(newVariable()));
                 case '/':
-                case '':
+                case '^':
                     func.args = func.args
                         .filter((n) => !isConstant(n))
                         .map((n) => {
@@ -42,7 +42,7 @@ function injectVariables(
         case 'FunctionNode':
             switch (
                 (typeof func.fn == 'string' && func.fn) ||
-                (func.fn as any as MathNode).name
+                (func.fn as any as math.MathNode).name
             ) {
                 // Trig functions
                 case 'sin':
@@ -63,34 +63,35 @@ function injectVariables(
                         func.args[0],
                         variables
                     );
+                    func.args[0] = node;
                     for (const variable in vars.entries())
                         variables.add(variable);
-                    func.args[0] = parse(
+                    func.args[0] = math.parse(
                         `${newVariable()} * (${func.args[0].toString()})`
                     );
+                    return [func, variables];
             }
     }
+    return [func, variables];
 }
 
 export default async function undetermined_coefficients(
-    y: MathNode,
-    f: MathNode,
+    y: math.MathNode,
+    f: math.MathNode,
     independentVariable: string = 'x',
     dependentVariable: string = 'y'
-): Promise<MathNode> {
-    f = simplify(f);
+): Promise<math.MathNode> {
+    f = math.simplify(f);
     /**
      * The particular solution.
      */
-    let y_p = parse('a+b'); // This is used to get an addition node that I can repopulate with the derivatives.
-    y_p.args = derivatives(f, independentVariable);
-    y_p = expand(y_p);
-    console.log(y_p.toString());
-    let variables: Set<string>;
-    [y_p, variables] = injectVariables(y_p);
+    let y_p_initial = math.parse('a+b'); // This is used to get an addition node that I can repopulate with the derivatives.
+    y_p_initial.args = derivatives(f, independentVariable);
+    y_p_initial = expand(y_p_initial);
+    let [y_p, variables] = injectVariables(y_p_initial);
 
     // Substiture y_p in for y.
-    y = y.transform(function (node, path, parent) {
+    y = y.transform(function (node) {
         if (node.isSymbolNode && node.name == dependentVariable) {
             return y_p.cloneDeep();
         } else {
@@ -99,7 +100,7 @@ export default async function undetermined_coefficients(
     });
 
     // Create the function with calculated derivatives
-    y = y.transform(function (node, path, parent) {
+    y = y.transform(function (node) {
         if (
             node.isFunctionNode &&
             node.fn !== 'object' &&
@@ -114,42 +115,56 @@ export default async function undetermined_coefficients(
             return node;
         }
     });
-    y = simplify(y);
+    y = math.simplify(y);
 
-    const coefficients = [];
-    const values = [];
-    console.log(y_p.toString());
-    console.log(y.toString());
-    console.log(f.toString());
+    const equations: math.MathNode[] = [];
 
-    // Normalize f and y
+    let solvingEquation = math.parse(`${f.toString()} == ${y.toString()}`);
+    for (const _ of variables) {
+        const value = Math.floor(Math.random() * 100); // Just get a good value somewhere
+        equations.push(
+            solvingEquation.transform((node) => {
+                if (node.isSymbolNode && node.name == independentVariable) {
+                    return math.parse(`${value}`);
+                }
+                return node;
+            })
+        );
+    }
+    const varArray = [...variables];
+    const solutionArray: number[] = [];
+    const coeffMatrix = equations.map((equation) => {
+        const coeff: number[] = new Array(varArray.length).fill(0);
+        solutionArray.push(equation.args[0].evaluate());
+        expand(equation.args[1]).forEach(function coeffFinder(node) {
+            if (node.isOperatorNode && node.op == '+')
+                return node.forEach(coeffFinder);
+            if (node.isOperatorNode && node.op == '*') {
+                if (node.args[0].isConstantNode)
+                    return (coeff[varArray.indexOf(node.args[1].name)] =
+                        node.args[0].value);
+                else if (node.args[1].isConstantNode)
+                    return (coeff[varArray.indexOf(node.args[0].name)] =
+                        node.args[1].value);
+            } else if (node.isSymbolNode && variables.has(node.name)) {
+                return (coeff[varArray.indexOf(node.name)] = 1);
+            }
+            console.log(node);
+            throw new Error('Currently Unsolvable format, aborting...');
+        });
+        return coeff;
+    });
+    const solvedValues: number[] = math
+        .lusolve(coeffMatrix, solutionArray)
+        .map((val) => val[0] as number) as number[];
+    y_p = y_p.transform((node) => {
+        if (node.isSymbolNode && variables.has(node.name)) {
+            return math.parse(
+                `${solvedValues[varArray.indexOf(node.name)]}` // Get the value for the variable
+            );
+        }
+        return node;
+    });
 
-    /**
-     * Expects A tree with addition between parts in f and y.
-     * Parts are divided into a constant multiplier or internal variable multiplier times some things that do not include internal variables.
-     */
-    // y.args.forEach((node) => {
-    //     const p = f.filter((n) => equal)[0];
-    //     let co = node.args[0].args;
-    //     let ci = co.map((n) => parseInt(n.name.substring(34)));
-    //     let coefficient = new Array(i);
-    //     ci.forEach((val) => (coefficient[val] = 1));
-    //     coefficients.push(coefficient);
-    //     values.push(p.args[0]);
-    // });
-
-    // const solvedCoeff = lsolve(coefficients, values);
-
-    // y = y.transform((node) => {
-    //     if (
-    //         node.isSymbolNode &&
-    //         node.name.indexOf('___internal_variable_do_not_use___') == 0
-    //     ) {
-    //         return parse(`${solvedCoeff[parseInt(node.name.substring(34))]}`);
-    //     } else {
-    //         return node;
-    //     }
-    // });
-
-    return simplify(y); // Make it pretty (the function is most likely very ugly at this point in time)
+    return math.simplify(y_p); // Make it pretty (the function is most likely very ugly at this point in time)
 }
